@@ -1,0 +1,5 @@
+cd /usr/lib/x86_64-linux-gnu/qt5/bin/ 
+./designer
+
+pyuic5 autofly.ui -o gui.py
+
