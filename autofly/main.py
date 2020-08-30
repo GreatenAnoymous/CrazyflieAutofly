@@ -1,10 +1,7 @@
 import logging
 import time
 import threading
-
-
 import numpy as np
-
 import matplotlib
 
 
@@ -25,6 +22,10 @@ import gui
 
 
 from StateThread import *
+from TableModel import *
+from trajWin import *
+
+
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -32,44 +33,9 @@ delta=0.05
 
 
 
-class TableModel(QtCore.QAbstractTableModel):
-    def __init__(self, data):
-        super(TableModel, self).__init__()
-        self._data = data
-
-    def data(self, index, role):
-        if role == QtCore.Qt.DisplayRole:
-            # See below for the nested-list data structure.
-            # .row() indexes into the outer list,
-            # .column() indexes into the sub-list
-            return self._data[index.row()][index.column()]
-
-    def rowCount(self, index):
-        # The length of the outer list.
-        return len(self._data)
-
-    def columnCount(self, index):
-        # The following takes the first sub-list, and returns
-        # the length (only works if all rows are an equal length)
-        return len(self._data[0])
-
-    def headerData(self, section, orientation, role):
-        # section is the index of the column/row.
-        index=["x","y","z","yaw"]
-        if role == QtCore.Qt.DisplayRole:
-            if orientation == QtCore.Qt.Horizontal:
-                return index[section]
-
-            if orientation == QtCore.Qt.Vertical:
-                return str(section)
-
-
-
-
-
-class ExampleApp(QtWidgets.QMainWindow, gui.Ui_Form):
+class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
     def __init__(self, parent=None):
-        super(ExampleApp, self).__init__(parent)
+        super(MainApp, self).__init__(parent)
         self.setupUi(self)
         self.connected=False
         self.button_takeoff.clicked.connect(self.takeoff) 
@@ -78,30 +44,47 @@ class ExampleApp(QtWidgets.QMainWindow, gui.Ui_Form):
         self.button_send.clicked.connect(self.send_point)
         self.button_add.clicked.connect(self.add_point)
         self.button_follow.clicked.connect(self.follow_point)
+        self.button_traj_select.clicked.connect(self.select_traj)
+        self.button_traj_follow.clicked.connect(self.follow_traj)
+        self.button_visualize.clicked.connect(self.visualize)
         self.cf=Crazyflie()
-        self.points=[]
+        self.points=[]  
         self.model=QtGui.QStandardItemModel(4,4,self.table_points)
         self.model.setHorizontalHeaderLabels(['x','y','z','yaw'])
-      
         self.table_points.setModel(self.model)
-        #self.mc=MotionCommander(self.cf)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+
+        ########if we want to use Motion Commander#############
+        ########self.mc=MotionCommander(self.cf)  #############
+        #######################################################
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)  #avoid QtThread crashing after closing the windows
         print(self.textEdit_uri.toPlainText())  #your uri
-        
+
+    def visualize(self):
+        self.stateThread.visual=1
+
     def add_point(self):
         x=self.doubleSpinBox_x.value()
         y=self.doubleSpinBox_y.value()
         z=self.doubleSpinBox_z.value()
         yaw=self.doubleSpinBox_yaw.value()
         self.points.append([x,y,z,yaw])
-        #rowPosition = self.table_points.rowCount()
-        rowPosition = len(self.points)
         self.model=TableModel(self.points)
-        #self.model.setHorizontalHeaderLabels(['x','y','z','yaw'])
         self.table_points.setModel(self.model)
-        
 
-    # go to the waypoint with velocity=0.1    
+    #select trajectory to follow
+
+    def select_traj(self):
+        self.w=trajWin()
+        self.w.show()
+    
+    def display(self,status):
+        slm=QtCore.QStringListModel()
+        self.qList=['x: '+str(status[0]),'y: '+str(status[1]),'z: '+str(status[2]),'roll: '+str(status[3]),'pitch: '+str(status[4]),'yaw: '+str(status[5]),'isConnected: '+str(status[6])]
+        slm.setStringList(self.qList)
+        self.listView.setModel(slm)
+
+    # go to the waypoint with default velocity=0.1    
     def waypoint_goto(self,point,v=0.1):
         x=self.stateThread.x
         y=self.stateThread.y
@@ -124,6 +107,48 @@ class ExampleApp(QtWidgets.QMainWindow, gui.Ui_Form):
         for p in self.points:
             self.waypoint_goto(p)
             time.sleep(0.1)
+
+    def follow_traj(self):
+        if isinstance(self.w.accept_returned, str):
+            if self.w.accept_returned!=' ':
+                traj=np.loadtxt(self.w.accept_returned)
+                cf2_follow_traj(traj)
+
+        else:
+            if len(self.w.accept_returned)!=0:
+                rc=self.w.accept_returned[0]
+                zc=self.w.accept_returned[1]
+                vc=self.w.accept_returned[2]
+                self.cf2_circle(rc,zc,vc)
+
+
+    def cf2_circle(self,rc,zc,vc):
+        # Number of setpoints sent per second
+        fs = 4
+        fsi = 1.0 / fs
+        comp = 1.3
+        # Compensation for unknown error :-(
+        self.cf.high_level_commander.go_to(self.stateThread.x,self.stateThread.y,zc,0,1.0)
+        poshold(self.cf, 2, zc)
+        for _ in range(2):
+        # The time for one revolution
+            circle_time = 2*np.pi/vc
+            steps = circle_time * fs
+            for _ in range(steps):
+                self.cf.commander.send_hover_setpoint(2*rc * comp * np.pi / circle_time,0, 360.0 / circle_time, zc)
+                time.sleep(fsi)
+        poshold(self.cf, 2, zc)
+
+    #follow trajectory x,y,z,yaw
+    def cf2_follow_traj(self,data):
+        [t0,x0,y0,z0,yaw0]=data[0]
+        self.cf.high_level_commander.go_to(x0,y0,z0,yaw0,1.0)
+        poshold(self.cf, 2, zc)
+        for i in range(1,data.shape[0]):
+            p=data[i]
+            duration=data[i,0]-data[i-1,0]
+            self.cf.commander.send_position_setpoint(self, data[i,1], data[i,2], data[i,3], data[i,4])
+            time.sleep(duration)
 
 
     def connect_switch(self):
@@ -163,17 +188,20 @@ class ExampleApp(QtWidgets.QMainWindow, gui.Ui_Form):
         self.activate_high_level_commander()
         self.stateThread=StateThread(self.cf)
         self.stateThread.start()
+        #self.stateThread.trigger.connect(self.display)
         self.cf.high_level_commander.takeoff(.3, 1.0)
         #self.mc.take_off(0.3,0.3)
         time.sleep(3)
 
+    #land
     def land(self):
         print("Land!")
         self.cf.high_level_commander.land(0.0, 1.0)
         #self.stateThread.anim.event_source.stop()
-       # del self.stateThread.anim
+        #del self.stateThread.anim
         #pyplot.close('all')
-        #pyplot.close(self.stateThread.fig)
+        fig = plt.gcf()
+        pyplot.close(fig)
         self.stateThread.quit()
         time.sleep(2.0)
 
@@ -186,7 +214,7 @@ class ExampleApp(QtWidgets.QMainWindow, gui.Ui_Form):
         self.cf.high_level_commander.go_to(x,y,z,yaw,1.0)
 
     
-
+    #use your keyboard to control the uav
     def keyPressEvent(self, event):
         x=self.stateThread.x
         y=self.stateThread.y
@@ -208,7 +236,7 @@ class ExampleApp(QtWidgets.QMainWindow, gui.Ui_Form):
 
 def main():
     app = QApplication(sys.argv)
-    form = ExampleApp()
+    form = MainApp()
     form.show()
     app.exec_()
     

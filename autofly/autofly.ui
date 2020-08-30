@@ -204,7 +204,7 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>750</x>
-     <y>180</y>
+     <y>170</y>
      <width>111</width>
      <height>41</height>
     </rect>
@@ -216,8 +216,8 @@ p, li { white-space: pre-wrap; }
   <widget class="QLabel" name="label_7">
    <property name="geometry">
     <rect>
-     <x>80</x>
-     <y>630</y>
+     <x>70</x>
+     <y>690</y>
      <width>651</width>
      <height>31</height>
     </rect>
@@ -230,20 +230,20 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>140</y>
+     <y>130</y>
      <width>261</width>
      <height>21</height>
     </rect>
    </property>
    <property name="text">
-    <string>Trajectory follow: to do</string>
+    <string>Trajectory follow: </string>
    </property>
   </widget>
   <widget class="QLabel" name="label_9">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>200</y>
+     <y>270</y>
      <width>261</width>
      <height>21</height>
     </rect>
@@ -256,19 +256,19 @@ p, li { white-space: pre-wrap; }
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>250</y>
+     <y>320</y>
      <width>531</width>
-     <height>281</height>
+     <height>341</height>
     </rect>
    </property>
   </widget>
   <widget class="QPushButton" name="button_add">
    <property name="geometry">
     <rect>
-     <x>580</x>
-     <y>70</y>
-     <width>106</width>
-     <height>30</height>
+     <x>190</x>
+     <y>260</y>
+     <width>91</width>
+     <height>41</height>
     </rect>
    </property>
    <property name="text">
@@ -278,14 +278,73 @@ p, li { white-space: pre-wrap; }
   <widget class="QPushButton" name="button_follow">
    <property name="geometry">
     <rect>
-     <x>170</x>
-     <y>189</y>
-     <width>106</width>
+     <x>320</x>
+     <y>260</y>
+     <width>91</width>
      <height>41</height>
     </rect>
    </property>
    <property name="text">
     <string>Follow</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_10">
+   <property name="geometry">
+    <rect>
+     <x>600</x>
+     <y>270</y>
+     <width>151</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>UAV Status:</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="button_traj_select">
+   <property name="geometry">
+    <rect>
+     <x>190</x>
+     <y>120</y>
+     <width>91</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Select</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="button_traj_follow">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>120</y>
+     <width>91</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Follow</string>
+   </property>
+  </widget>
+  <widget class="QTextBrowser" name="browser_traj">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>170</y>
+     <width>531</width>
+     <height>41</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QListView" name="listView">
+   <property name="geometry">
+    <rect>
+     <x>600</x>
+     <y>320</y>
+     <width>351</width>
+     <height>341</height>
+    </rect>
    </property>
   </widget>
  </widget>

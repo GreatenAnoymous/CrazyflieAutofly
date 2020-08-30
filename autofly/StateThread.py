@@ -22,26 +22,27 @@ bs=1
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)        
 
 class StateThread(QtCore.QThread):
+    trigger = QtCore.pyqtSignal(list)
     def __init__(self,cf):
         super(StateThread, self).__init__()
         self.cf=cf
         self.arm_length=0.1
-        self.lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
+        self.lg_stab = LogConfig(name='Stabilizer', period_in_ms=200)
         self.lg_stab.add_variable('stateEstimate.x', 'float')
         self.lg_stab.add_variable('stateEstimate.y', 'float')
         self.lg_stab.add_variable('stateEstimate.z', 'float')
         self.lg_stab.add_variable('stateEstimate.roll', 'float')
         self.lg_stab.add_variable('stateEstimate.pitch', 'float')
         self.lg_stab.add_variable('stateEstimate.yaw', 'float')
+        self.lg_stab.add_variable('radio.isConnected','uint8_t')
         self.is_connected=False
         self.x=0;self.y=0;self.z=0;self.roll=0;self.pitch=0;self.yaw=0
         self.trajectory=[]
+        self.visual=0
   
 
     def run(self):
-        
         self.is_connected=True
-        
         try:
             self.cf.log.add_config(self.lg_stab)
             self.is_connected=True
@@ -52,7 +53,7 @@ class StateThread(QtCore.QThread):
             #self._lg_stab.error_cb.add_callback(self._stab_log_error)
             # Start the logging
             self.lg_stab.start()
-            self.visulize()
+            
         except KeyError as e:
             print('Could not start log configuration,''{} not found in TOC'.format(str(e)))
 
@@ -65,17 +66,19 @@ class StateThread(QtCore.QThread):
         self.roll=data['stateEstimate.roll']
         self.pitch=data['stateEstimate.y']
         self.yaw=data['stateEstimate.y']
+        self.is_connected=data['radio.isConnected']
+        self.trigger.emit([self.x,self.y,self.z,self.roll,self.pitch,self.yaw,self.is_connected])
+        if self.visual==1:
+            self.visulize()
+            self.visual=2
         #print(self.x,self.y,self.z)
 
     def _disconnected(self,link_uri):
         self.is_connected=False
-        
        # self.anim.event_source.stop()
         
         #pyplot.close(self.fig)
         #print(data['stateEstimate.x'],data['stateEstimate.y'],data['stateEstimate.z'])
-
-    
 
     def setup_plot(self):
         # setup
