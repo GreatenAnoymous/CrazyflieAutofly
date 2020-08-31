@@ -1,3 +1,3 @@
 # CrazyflieAutofly
 
-A simple UI for automatically control crazyflie2.
+A simple UI for automatically controlling a single crazyflie2.
