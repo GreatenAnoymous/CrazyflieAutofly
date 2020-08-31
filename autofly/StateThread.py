@@ -27,7 +27,7 @@ class StateThread(QtCore.QThread):
         super(StateThread, self).__init__()
         self.cf=cf
         self.arm_length=0.1
-        self.lg_stab = LogConfig(name='Stabilizer', period_in_ms=200)
+        self.lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
         self.lg_stab.add_variable('stateEstimate.x', 'float')
         self.lg_stab.add_variable('stateEstimate.y', 'float')
         self.lg_stab.add_variable('stateEstimate.z', 'float')
@@ -52,7 +52,9 @@ class StateThread(QtCore.QThread):
             # This callback will be called on errors
             #self._lg_stab.error_cb.add_callback(self._stab_log_error)
             # Start the logging
+            
             self.lg_stab.start()
+            self.visulize()
             
         except KeyError as e:
             print('Could not start log configuration,''{} not found in TOC'.format(str(e)))
@@ -68,10 +70,7 @@ class StateThread(QtCore.QThread):
         self.yaw=data['stateEstimate.y']
         self.is_connected=data['radio.isConnected']
         self.trigger.emit([self.x,self.y,self.z,self.roll,self.pitch,self.yaw,self.is_connected])
-        if self.visual==1:
-            self.visulize()
-            self.visual=2
-        #print(self.x,self.y,self.z)
+      #  print(self.visual)
 
     def _disconnected(self,link_uri):
         self.is_connected=False
@@ -127,6 +126,7 @@ class StateThread(QtCore.QThread):
         return [self.plot_artists[0]] + self.plot_artists[1]
 
     def animate(self, i):
+       
         center_point = np.array([self.x,self.y,self.z])
         euler_angles = np.array([self.roll,self.pitch,self.yaw])
         self.plot_artists[0].set_data([p[0] for p in self.trajectory],[p[1] for p in self.trajectory])

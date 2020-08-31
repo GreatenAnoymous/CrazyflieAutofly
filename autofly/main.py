@@ -32,6 +32,14 @@ logging.basicConfig(level=logging.ERROR)
 delta=0.05
 
 
+def poshold(cf, t, z):
+    steps = t * 10
+
+    for r in range(steps):
+        cf.commander.send_hover_setpoint(0, 0, 0, z)
+        time.sleep(0.1)
+
+
 
 class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
     def __init__(self, parent=None):
@@ -52,6 +60,7 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         self.model=QtGui.QStandardItemModel(4,4,self.table_points)
         self.model.setHorizontalHeaderLabels(['x','y','z','yaw'])
         self.table_points.setModel(self.model)
+        self.visual=False
 
         ########if we want to use Motion Commander#############
         ########self.mc=MotionCommander(self.cf)  #############
@@ -61,7 +70,9 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         print(self.textEdit_uri.toPlainText())  #your uri
 
     def visualize(self):
-        self.stateThread.visual=1
+        self.visual=True
+        self.stateThread=StateThread(self.cf)
+        self.stateThread.start()
 
     def add_point(self):
         x=self.doubleSpinBox_x.value()
@@ -77,12 +88,16 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
     def select_traj(self):
         self.w=trajWin()
         self.w.show()
+        self.w.triggerWin2.connect(self.display_traj)
     
     def display(self,status):
         slm=QtCore.QStringListModel()
         self.qList=['x: '+str(status[0]),'y: '+str(status[1]),'z: '+str(status[2]),'roll: '+str(status[3]),'pitch: '+str(status[4]),'yaw: '+str(status[5]),'isConnected: '+str(status[6])]
         slm.setStringList(self.qList)
         self.listView.setModel(slm)
+
+    def display_traj(self,traj_info):
+        self.browser_traj.setText(traj_info)
 
     # go to the waypoint with default velocity=0.1    
     def waypoint_goto(self,point,v=0.1):
@@ -112,7 +127,7 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         if isinstance(self.w.accept_returned, str):
             if self.w.accept_returned!=' ':
                 traj=np.loadtxt(self.w.accept_returned)
-                cf2_follow_traj(traj)
+                self.cf2_follow_traj(traj)
 
         else:
             if len(self.w.accept_returned)!=0:
@@ -127,29 +142,36 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         fs = 4
         fsi = 1.0 / fs
         comp = 1.3
+
+        print(rc,zc,vc)
+
         # Compensation for unknown error :-(
-        self.cf.high_level_commander.go_to(self.stateThread.x,self.stateThread.y,zc,0,1.0)
+        
+        self.cf.high_level_commander.go_to(0,0,zc,0,1.0)
         poshold(self.cf, 2, zc)
         for _ in range(2):
         # The time for one revolution
             circle_time = 2*np.pi/vc
-            steps = circle_time * fs
+            steps = int(circle_time * fs)
             for _ in range(steps):
                 self.cf.commander.send_hover_setpoint(2*rc * comp * np.pi / circle_time,0, 360.0 / circle_time, zc)
                 time.sleep(fsi)
         poshold(self.cf, 2, zc)
+        
 
     #follow trajectory x,y,z,yaw
     def cf2_follow_traj(self,data):
-        [t0,x0,y0,z0,yaw0]=data[0]
-        self.cf.high_level_commander.go_to(x0,y0,z0,yaw0,1.0)
-        poshold(self.cf, 2, zc)
+        z0=data[0][4]
+        #[t0,x0,y0,z0,yaw0]=data[0]
+        self.cf.high_level_commander.go_to(0,0,z0,0,1.0)
+        poshold(self.cf, 2, z0)
         for i in range(1,data.shape[0]):
-            p=data[i]
             duration=data[i,0]-data[i-1,0]
-            self.cf.commander.send_position_setpoint(self, data[i,1], data[i,2], data[i,3], data[i,4])
+            self.cf.commander.send_hover_setpoint(data[i,1], data[i,2], data[i,3], data[i,4])
+            #self.cf.commander.send_position_setpoint(self, data[i,1], data[i,2], data[i,3], data[i,4])
             time.sleep(duration)
-
+       # self.cf.commander.send_stop_setpoint()
+        self.cf.high_level_commander.go_to(0,0,z0,0,1.0)
 
     def connect_switch(self):
         if self.connected==False:
@@ -186,8 +208,7 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         print("Take off!")
         self.reset_estimator()
         self.activate_high_level_commander()
-        self.stateThread=StateThread(self.cf)
-        self.stateThread.start()
+        
         #self.stateThread.trigger.connect(self.display)
         self.cf.high_level_commander.takeoff(.3, 1.0)
         #self.mc.take_off(0.3,0.3)
@@ -200,9 +221,10 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         #self.stateThread.anim.event_source.stop()
         #del self.stateThread.anim
         #pyplot.close('all')
-        fig = plt.gcf()
-        pyplot.close(fig)
-        self.stateThread.quit()
+        #fig = plt.gcf()
+        #pyplot.close(fig)
+        if self.visual:
+            self.stateThread.quit()
         time.sleep(2.0)
 
     def send_point(self):

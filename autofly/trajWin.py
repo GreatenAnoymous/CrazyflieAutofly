@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QApplication
 import gui2
 
 class trajWin(QtWidgets.QMainWindow, gui2.Ui_choose_trajectory):
+    triggerWin2 = QtCore.pyqtSignal(str)
     def __init__(self,parent=None):
         super(trajWin, self).__init__(parent)
         self.setupUi(self)
@@ -47,11 +48,12 @@ class trajWin(QtWidgets.QMainWindow, gui2.Ui_choose_trajectory):
         self.hide()
 
     def accept(self):
-        if opt==0:
+        if self.opt==0:
             rc=self.doubleSpinBox_rc.value()
             zc=self.doubleSpinBox_zc.value()
             vc=self.doubleSpinBox_vc.value()
             #print([xc,yc,zc,vc])
+            self.triggerWin2.emit('circle: rc='+str(rc)+' zc='+str(zc)+' vc='+str(vc))
             self.hide()
             self.accept_returned=[rc,zc,vc]
 
@@ -59,8 +61,10 @@ class trajWin(QtWidgets.QMainWindow, gui2.Ui_choose_trajectory):
             if self.opt==1:
                 self.hide()
                 self.accept_returned=self.openfile_name[0]
+                self.triggerWin2.emit(self.openfile_name[0])
             else: 
                 self.accept_returned=[]
+                self.triggerWin2.emit('')
         
 
 def gui2_main():
