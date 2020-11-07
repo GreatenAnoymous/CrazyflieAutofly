@@ -18,7 +18,10 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication
 import sys
 import gui
+import plotter
+from matplotlib.figure import Figure
 
+from matplotlib.backends.backend_qt5agg import (FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
 
 from StateThread import *
@@ -41,7 +44,7 @@ def poshold(cf, t, z):
 
 
 
-class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
+class MainApp(QtWidgets.QMainWindow, gui.Ui_MainWindow):
     def __init__(self, parent=None):
         super(MainApp, self).__init__(parent)
         self.setupUi(self)
@@ -50,16 +53,26 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         self.button_connect.clicked.connect(self.connect_switch)
         self.button_land.clicked.connect(self.land)
         self.button_send.clicked.connect(self.send_point)
-        self.button_add.clicked.connect(self.add_point)
-        self.button_follow.clicked.connect(self.follow_point)
-        self.button_traj_select.clicked.connect(self.select_traj)
+       
+      
+        self.button_traj_set.clicked.connect(self.select_traj)
         self.button_traj_follow.clicked.connect(self.follow_traj)
-        self.button_visualize.clicked.connect(self.visualize)
+
+        self.layout = QtWidgets.QVBoxLayout(self.plot_widget)
+        self.fig=Figure(figsize=(5, 3))
+        self.canvas = FigureCanvas(self.fig)
+        self.layout.addWidget(self.canvas)
+
         self.cf=Crazyflie()
+        self.plotter_s=plotter.Plotter(self.cf,self.canvas,self.fig)
+        
+        
+        #self.button_visualize.clicked.connect(self.visualize)
+        
         self.points=[]  
-        self.model=QtGui.QStandardItemModel(4,4,self.table_points)
-        self.model.setHorizontalHeaderLabels(['x','y','z','yaw'])
-        self.table_points.setModel(self.model)
+        #self.model=QtGui.QStandardItemModel(4,4,self.table_points)
+       # self.model.setHorizontalHeaderLabels(['x','y','z','yaw'])
+        #self.table_points.setModel(self.model)
         self.visual=False
 
         ########if we want to use Motion Commander#############
@@ -68,12 +81,14 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)  #avoid QtThread crashing after closing the windows
         print(self.textEdit_uri.toPlainText())  #your uri
-
+    '''
     def visualize(self):
         self.visual=True
         self.stateThread=StateThread(self.cf)
         self.stateThread.start()
+    '''
 
+    '''
     def add_point(self):
         x=self.doubleSpinBox_x.value()
         y=self.doubleSpinBox_y.value()
@@ -82,19 +97,21 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
         self.points.append([x,y,z,yaw])
         self.model=TableModel(self.points)
         self.table_points.setModel(self.model)
-
+    '''
     #select trajectory to follow
 
     def select_traj(self):
         self.w=trajWin()
         self.w.show()
         self.w.triggerWin2.connect(self.display_traj)
-    
+        
+    '''
     def display(self,status):
         slm=QtCore.QStringListModel()
         self.qList=['x: '+str(status[0]),'y: '+str(status[1]),'z: '+str(status[2]),'roll: '+str(status[3]),'pitch: '+str(status[4]),'yaw: '+str(status[5]),'isConnected: '+str(status[6])]
         slm.setStringList(self.qList)
         self.listView.setModel(slm)
+    '''
 
     def display_traj(self,traj_info):
         self.browser_traj.setText(traj_info)
@@ -183,6 +200,9 @@ class MainApp(QtWidgets.QMainWindow, gui.Ui_Form):
             time.sleep(5)
             self.connected=True
             self.button_connect.setText("Disconnect")
+            self.stateThread=StateThread(self.cf,self.plotter_s)
+            self.stateThread.start()
+            self.plotter_s.visulize()
         else:
             self.cf.close_link()
             self.connected=False
